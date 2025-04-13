@@ -19,6 +19,11 @@ def main():
     # Create the Updater and pass it your bot's token
     token = os.environ.get("TELEGRAM_TOKEN", "8166423286:AAGkFu7rCr8etPwruo9OdbAXL9zE_PxFM0k")
     
+    # Print information about the bot setup
+    logger.info("Initializing bot...")
+    logger.info("Make sure your bot's privacy mode is DISABLED to work in groups")
+    logger.info("You can disable privacy mode by messaging @BotFather and using /setprivacy")
+    
     # Setup persistence
     updater = Updater(token)
     

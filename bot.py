@@ -38,6 +38,26 @@ SHARE_MORE = 'share_more'
 # Preview action
 PREVIEW = 'preview'
 DOWNLOAD = 'download'
+
+# Group mode handling - Check if command is in a group and handle accordingly
+def is_group_message(update):
+    """Check if the message is from a group chat."""
+    return update.effective_chat.type in ["group", "supergroup"]
+
+def handle_group_command(update, context, command_function):
+    """
+    Special handler for commands in groups. Ensures the bot processes
+    commands properly in group environments.
+    """
+    if is_group_message(update):
+        # Log that we received a command in a group
+        logger.info(f"Received command in group: {update.effective_chat.title}")
+        
+        # Process all commands in groups (more permissive approach)
+        return command_function(update, context)
+    else:
+        # Process normally in private chats
+        return command_function(update, context)
 PREVIEW_DURATION = 30  # seconds for preview
 
 logger = logging.getLogger(__name__)
