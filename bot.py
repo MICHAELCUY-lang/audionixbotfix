@@ -723,8 +723,7 @@ def setup_bot(dispatcher):
     # Import command handlers from bot_commands.py
     from bot_commands import (
         lyrics_command, lyrics_search, trending_command, 
-        subscribe_command, subscribe_menu_callback, 
-        handle_artist_subscribe, handle_platform_selection, handle_unsubscribe
+        recommend_command, recommend_callback
     )
     
     # Basic command handlers
@@ -762,21 +761,16 @@ def setup_bot(dispatcher):
     )
     dispatcher.add_handler(convert_conv_handler)
     
-    # Subscription conversation handler
-    subscribe_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("subscribe", subscribe_command)],
-        states={
-            SUBSCRIBING: [
-                CallbackQueryHandler(subscribe_menu_callback, pattern="^subscribe_artist$|^manage_subscriptions$|^toggle_notifications$"),
-                CallbackQueryHandler(handle_platform_selection, pattern="^sub_platform_"),
-                CallbackQueryHandler(handle_unsubscribe, pattern="^unsub_"),
-                CallbackQueryHandler(lambda u, c: ConversationHandler.END, pattern="^sub_done$"),
-                MessageHandler(Filters.text & ~Filters.command, handle_artist_subscribe),
-            ],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
+    # Add recommendation handlers
+    dispatcher.add_handler(CommandHandler("recommend", recommend_command))
+    
+    # Add recommendation callback handler
+    dispatcher.add_handler(
+        CallbackQueryHandler(
+            recommend_callback,
+            pattern=r'^genre_|^custom_rec$'
+        )
     )
-    dispatcher.add_handler(subscribe_conv_handler)
     
     # Add trending handler
     dispatcher.add_handler(CommandHandler("trending", trending_command))

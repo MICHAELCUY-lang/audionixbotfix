@@ -5,16 +5,17 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from services.lyrics_service import get_lyrics_as_text
 from services.trending_service import get_trending_formatted
-from services.notification_service import (
-    subscribe_to_artist, unsubscribe_from_artist, 
-    get_user_subscriptions, toggle_notifications
+from services.recommendation_service import (
+    get_mixed_recommendations, get_recommendations_by_genre,
+    get_recommendations_by_artist, get_recommendations_by_track,
+    get_popular_genres, save_recommendation_history, initialize_clients
 )
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# States for subscription conversation
-SUBSCRIBING = 4  # Matches the state in bot.py
+# Initialize recommendation service
+initialize_clients()
 
 def lyrics_command(update: Update, context: CallbackContext) -> None:
     """Handle the /lyrics command."""
@@ -28,301 +29,171 @@ def lyrics_search(update: Update, context: CallbackContext) -> None:
     query = update.message.text
     
     # Split query into title and artist (if provided in the format "Title - Artist")
-    parts = query.split('-')
-    title = parts[0].strip()
-    artist = parts[1].strip() if len(parts) > 1 else None
+    parts = query.split(" - ", 1)
+    if len(parts) == 2:
+        title, artist = parts
+        title = title.strip()
+        artist = artist.strip()
+    else:
+        title = query
+        artist = None
     
-    # Send a status message
-    status_message = update.message.reply_text(f"Searching for lyrics of '{title}'{f' by {artist}' if artist else ''}...")
+    # Send a "searching" message
+    status_message = update.message.reply_text(
+        f"🔎 Searching for lyrics of '{title}'{' by ' + artist if artist else ''}..."
+    )
     
-    try:
-        # Get lyrics using Genius API
-        lyrics = get_lyrics_as_text(title, artist)
-        
-        if lyrics and len(lyrics) > 0:
-            # Break up the lyrics into 4000-character chunks if needed (Telegram message limit)
-            if len(lyrics) > 4000:
-                chunks = [lyrics[i:i+4000] for i in range(0, len(lyrics), 4000)]
-                
-                # Send first chunk with header
-                first_chunk = chunks[0]
-                header = f"🎵 *Lyrics for '{title}'*"
-                header += f" *by {artist}*" if artist else ""
-                header += "\n\n"
-                
-                context.bot.delete_message(
-                    chat_id=update.effective_chat.id,
-                    message_id=status_message.message_id
-                )
-                
+    # Get the lyrics
+    lyrics = get_lyrics_as_text(title, artist)
+    
+    # Update the message with the lyrics or error
+    if lyrics and "Could not find lyrics" not in lyrics:
+        # If lyrics are too long, split them into multiple messages
+        if len(lyrics) > 4000:
+            status_message.edit_text("📝 Found lyrics! Sending in multiple parts due to length...")
+            
+            # Split lyrics into chunks of 4000 characters
+            chunks = [lyrics[i:i+4000] for i in range(0, len(lyrics), 4000)]
+            
+            for i, chunk in enumerate(chunks):
                 update.message.reply_text(
-                    header + first_chunk,
-                    parse_mode='Markdown'
-                )
-                
-                # Send remaining chunks
-                for chunk in chunks[1:]:
-                    update.message.reply_text(chunk)
-            else:
-                # Send all lyrics in one message
-                header = f"🎵 *Lyrics for '{title}'*"
-                header += f" *by {artist}*" if artist else ""
-                header += "\n\n"
-                
-                context.bot.delete_message(
-                    chat_id=update.effective_chat.id,
-                    message_id=status_message.message_id
-                )
-                
-                update.message.reply_text(
-                    header + lyrics,
+                    f"📝 *Lyrics* (Part {i+1}/{len(chunks)}): \n\n{chunk}",
                     parse_mode='Markdown'
                 )
         else:
             status_message.edit_text(
-                f"❌ Sorry, couldn't find lyrics for '{title}'{f' by {artist}' if artist else ''}.\n"
-                "Please try again with a different song or check your spelling."
+                f"📝 *Lyrics*: \n\n{lyrics}",
+                parse_mode='Markdown'
             )
-    except Exception as e:
-        logger.error(f"Lyrics error: {e}")
+    else:
         status_message.edit_text(
-            f"❌ Error searching for lyrics: {str(e)}\n"
-            "Please try again or try a different song."
+            f"❌ Sorry, I couldn't find lyrics for '{title}'{' by ' + artist if artist else ''}. "
+            "Please check the spelling or try another song."
         )
 
 def trending_command(update: Update, context: CallbackContext) -> None:
     """Handle the /trending command and show trending songs."""
-    # Send a status message
-    status_message = update.message.reply_text("Fetching trending songs from Spotify and YouTube...")
+    # Send a "loading" message
+    status_message = update.message.reply_text(
+        "🔍 Fetching the latest trending songs... Please wait!"
+    )
     
-    try:
-        # Get trending songs formatted text
-        trending_text = get_trending_formatted()
+    # Get the trending songs formatted text
+    trending_text = get_trending_formatted()
+    
+    # Update the message with the trending songs
+    status_message.edit_text(
+        trending_text,
+        parse_mode='Markdown',
+        disable_web_page_preview=True
+    )
+
+def recommend_command(update: Update, context: CallbackContext) -> None:
+    """Handle the /recommend command and provide music recommendations."""
+    # Check if there are arguments (query or genre)
+    query = " ".join(context.args) if context.args else None
+    
+    if not query:
+        # No query provided, show genre options
+        genres = get_popular_genres()
         
-        if trending_text:
-            context.bot.delete_message(
-                chat_id=update.effective_chat.id,
-                message_id=status_message.message_id
-            )
+        # Create keyboard with genre buttons
+        keyboard = []
+        row = []
+        for i, genre in enumerate(genres):
+            # Format genre name for display (capitalize, replace hyphens)
+            display_name = genre.replace('-', ' ').title()
             
-            update.message.reply_text(
-                trending_text,
-                parse_mode='Markdown',
-                disable_web_page_preview=True
-            )
-        else:
-            status_message.edit_text(
-                "❌ Sorry, couldn't retrieve trending songs at the moment.\n"
-                "Please try again later."
-            )
-    except Exception as e:
-        logger.error(f"Trending error: {e}")
-        status_message.edit_text(
-            f"❌ Error fetching trending songs: {str(e)}\n"
-            "Please try again later."
-        )
-
-def subscribe_command(update: Update, context: CallbackContext) -> int:
-    """Handle the /subscribe command."""
-    keyboard = [
-        [
-            InlineKeyboardButton("Subscribe to Artist", callback_data="subscribe_artist"),
-            InlineKeyboardButton("Manage Subscriptions", callback_data="manage_subscriptions")
-        ],
-        [
-            InlineKeyboardButton("Toggle Notifications", callback_data="toggle_notifications")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
-        "Artist Subscription Manager\n\n"
-        "Get notified when your favorite artists release new music!\n\n"
-        "What would you like to do?", 
-        reply_markup=reply_markup
-    )
-    return SUBSCRIBING
-
-def subscribe_menu_callback(update: Update, context: CallbackContext) -> int:
-    """Handle subscription menu callbacks."""
-    query = update.callback_query
-    query.answer()
-    
-    action = query.data
-    
-    if action == "subscribe_artist":
-        query.edit_message_text(
-            "Please send me the artist name you want to subscribe to."
-        )
-        # Set state for the next handler
-        context.user_data['subscribe_action'] = 'artist_name'
-        return SUBSCRIBING
-    
-    elif action == "manage_subscriptions":
-        # Get user's subscriptions
-        telegram_id = str(update.effective_user.id)
-        subscriptions = get_user_subscriptions(telegram_id)
+            # Add button to current row
+            row.append(InlineKeyboardButton(display_name, callback_data=f"genre_{genre}"))
+            
+            # Start a new row every 3 buttons
+            if (i + 1) % 3 == 0 or i == len(genres) - 1:
+                keyboard.append(row)
+                row = []
         
-        if not subscriptions:
-            query.edit_message_text(
-                "You don't have any artist subscriptions yet.\n\n"
-                "Use /subscribe and select 'Subscribe to Artist' to add some!"
-            )
-            return ConversationHandler.END
+        # Add a button for custom recommendation
+        keyboard.append([InlineKeyboardButton("Custom Recommendation", callback_data="custom_rec")])
         
-        # Create keyboard with subscriptions
-        keyboard = []
-        for sub in subscriptions:
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"❌ {sub['artist_name']} ({sub['platform'].capitalize()})",
-                    callback_data=f"unsub_{sub['id']}"
-                )
-            ])
-        
-        keyboard.append([
-            InlineKeyboardButton("Done", callback_data="sub_done")
-        ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(
-            "Your Artist Subscriptions\n\n"
-            "Click on an artist to unsubscribe:",
-            reply_markup=reply_markup
-        )
-        return SUBSCRIBING
-    
-    elif action == "toggle_notifications":
-        telegram_id = str(update.effective_user.id)
-        # Toggle notifications
-        enabled = toggle_notifications(telegram_id, None)  # Toggle current state
-        
-        state = "ENABLED" if enabled else "DISABLED"
-        query.edit_message_text(
-            f"Notifications are now {state}.\n\n"
-            f"You will {'now receive' if enabled else 'no longer receive'} "
-            "notifications about new releases from your subscribed artists."
-        )
-        return ConversationHandler.END
-    
-    return SUBSCRIBING
-
-def handle_artist_subscribe(update: Update, context: CallbackContext) -> int:
-    """Handle artist name input for subscription."""
-    artist_name = update.message.text.strip()
-    
-    if not artist_name:
+        # Send message with genre options
         update.message.reply_text(
-            "Please provide a valid artist name."
+            "🎵 What kind of music would you like me to recommend? Choose a genre or request a custom recommendation:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        return SUBSCRIBING
-    
-    # Ask user to select platform
-    keyboard = [
-        [
-            InlineKeyboardButton("Spotify", callback_data=f"sub_platform_spotify_{artist_name}"),
-            InlineKeyboardButton("YouTube", callback_data=f"sub_platform_youtube_{artist_name}")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
-        f"Which platform would you like to subscribe to '{artist_name}' on?",
-        reply_markup=reply_markup
-    )
-    return SUBSCRIBING
-
-def handle_platform_selection(update: Update, context: CallbackContext) -> int:
-    """Handle platform selection for artist subscription."""
-    query = update.callback_query
-    query.answer()
-    
-    # Parse data in format "sub_platform_PLATFORM_ARTIST"
-    parts = query.data.split('_', 3)
-    platform = parts[2]
-    artist_name = parts[3]
-    
-    telegram_id = str(update.effective_user.id)
-    
-    # Update status
-    query.edit_message_text(f"Searching for '{artist_name}' on {platform.capitalize()}...")
-    
-    # Search for artist and subscribe
-    try:
-        # This would typically search the platform API for the artist ID
-        # For now, we'll just use a simple artist ID
-        artist_id = f"artist_{platform}_{artist_name.lower().replace(' ', '')}"
-        
-        # Subscribe to the artist
-        success = subscribe_to_artist(telegram_id, artist_name, artist_id, platform)
-        
-        if success:
-            query.edit_message_text(
-                f"✅ You are now subscribed to {artist_name} on {platform.capitalize()}!\n\n"
-                "You'll receive notifications when they release new music."
-            )
-        else:
-            query.edit_message_text(
-                f"❌ Failed to subscribe to {artist_name}.\n"
-                "You might already be subscribed to this artist, or there was an error."
-            )
-    except Exception as e:
-        logger.error(f"Subscription error: {e}")
-        query.edit_message_text(
-            f"❌ Error subscribing to {artist_name}: {str(e)}\n"
-            "Please try again later."
-        )
-    
-    return ConversationHandler.END
-
-def handle_unsubscribe(update: Update, context: CallbackContext) -> int:
-    """Handle unsubscribe callbacks."""
-    query = update.callback_query
-    query.answer()
-    
-    # Parse data in format "unsub_ID"
-    parts = query.data.split('_')
-    subscription_id = int(parts[1])
-    
-    telegram_id = str(update.effective_user.id)
-    
-    # Unsubscribe from the artist
-    success = unsubscribe_from_artist(telegram_id, subscription_id)
-    
-    if success:
-        # Get updated subscriptions
-        subscriptions = get_user_subscriptions(telegram_id)
-        
-        if not subscriptions:
-            query.edit_message_text(
-                "You've unsubscribed from all artists.\n\n"
-                "Use /subscribe and select 'Subscribe to Artist' to add some!"
-            )
-            return ConversationHandler.END
-        
-        # Create keyboard with remaining subscriptions
-        keyboard = []
-        for sub in subscriptions:
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"❌ {sub['artist_name']} ({sub['platform'].capitalize()})",
-                    callback_data=f"unsub_{sub['id']}"
-                )
-            ])
-        
-        keyboard.append([
-            InlineKeyboardButton("Done", callback_data="sub_done")
-        ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(
-            "Artist unsubscribed successfully.\n\n"
-            "Your Artist Subscriptions:\n"
-            "Click on an artist to unsubscribe:",
-            reply_markup=reply_markup
-        )
-        return SUBSCRIBING
     else:
+        # Query provided, get recommendations directly
+        send_recommendations(update, context, query)
+
+def recommend_callback(update: Update, context: CallbackContext) -> None:
+    """Handle recommendation callback queries."""
+    query = update.callback_query
+    query.answer()
+    
+    data = query.data
+    
+    if data == "custom_rec":
+        # User wants custom recommendation
         query.edit_message_text(
-            "❌ Failed to unsubscribe.\n"
-            "Please try again later."
+            "🎵 Please send me an artist name, song title, or both (in format 'Song - Artist') "
+            "for personalized recommendations!"
         )
-        return ConversationHandler.END
+    elif data.startswith("genre_"):
+        # User selected a genre
+        genre = data.split("_", 1)[1]
+        
+        # Format genre name for display
+        display_name = genre.replace('-', ' ').title()
+        
+        # Get recommendations for this genre
+        query.edit_message_text(f"🔍 Finding the best {display_name} recommendations for you...")
+        
+        # Get and send recommendations
+        send_recommendations(update, context, genre, is_callback=True)
+    else:
+        # Unknown callback data
+        query.edit_message_text("Sorry, I couldn't process that. Please try again.")
+
+def send_recommendations(update: Update, context: CallbackContext, query, is_callback=False) -> None:
+    """Send music recommendations based on the query."""
+    # Get mixed recommendations
+    recommendations = get_mixed_recommendations(query)
+    
+    # Save to history if it's not a callback (direct command)
+    if not is_callback:
+        user_id = update.message.from_user.id
+        save_recommendation_history(str(user_id), query)
+    
+    # Create the message
+    message = f"🎵 *Music Recommendations for '{query}'* 🎵\n\n"
+    
+    # Add Spotify recommendations
+    if recommendations['spotify']:
+        message += "*🎧 From Spotify:*\n"
+        for i, track in enumerate(recommendations['spotify']):
+            message += f"{i+1}. {track['title']} - {track['artist']}\n"
+        message += "\n"
+    
+    # Add YouTube recommendations
+    if recommendations['youtube']:
+        message += "*📺 From YouTube:*\n"
+        for i, video in enumerate(recommendations['youtube']):
+            message += f"{i+1}. {video['title']} - {video['artist']}\n"
+        message += "\n"
+    
+    # Add a note if no recommendations were found
+    if not recommendations['spotify'] and not recommendations['youtube']:
+        message += "Sorry, I couldn't find any recommendations for this query. Please try something else."
+    
+    # Send the message
+    if is_callback:
+        update.callback_query.edit_message_text(
+            message,
+            parse_mode='Markdown',
+            disable_web_page_preview=True
+        )
+    else:
+        update.message.reply_text(
+            message,
+            parse_mode='Markdown',
+            disable_web_page_preview=True
+        )
