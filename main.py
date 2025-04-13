@@ -56,7 +56,7 @@ def error_handler(update, context):
 def main():
     """Start the bot."""
     # Create the Updater and pass it your bot's token
-    token = os.environ.get("TELEGRAM_TOKEN", "8166423286:AAGkFu7rCr8etPwruo9OdbAXL9zE_PxFM0k")
+    token = os.environ.get("TELEGRAM_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
     
     # Start the keep-alive thread
     keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)

@@ -884,7 +884,7 @@ def setup_bot(dispatcher):
             f"User: {update.effective_user.username or update.effective_user.first_name}\n"
             f"User ID: {update.effective_user.id}\n"
             f"Bot Username: {context.bot.username}\n"
-            f"Is Bot Admin: {'Unknown - Check in chat settings'}"
+            f"Is Bot Admin: {'@rawrrrkak'}"
         )
     ))
     
