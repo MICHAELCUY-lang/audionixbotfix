@@ -147,36 +147,51 @@ def get_user_theme(telegram_id):
         dict: The user's theme settings.
     """
     try:
-        # Check if user has a theme
-        user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
+        # Importing here to avoid circular imports
+        from database import app
         
-        if not user_theme:
-            # Create a default theme for the user
-            user_theme = UserTheme(
-                telegram_id=telegram_id,
-                theme_name="default"
-            )
-            db.session.add(user_theme)
-            db.session.commit()
-            logger.info(f"Created default theme for user {telegram_id}")
-        
-        # Build theme dictionary
-        theme = {
-            "id": user_theme.id,
-            "theme_name": user_theme.theme_name,
-            "primary_color": user_theme.primary_color,
-            "secondary_color": user_theme.secondary_color,
-            "accent_color": user_theme.accent_color,
-            "font_style": user_theme.font_style,
-            "emoji_set": user_theme.emoji_set
-        }
-        
-        return theme
+        # Use Flask app context when querying the database
+        with app.app_context():
+            # Check if user has a theme
+            user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
+            
+            if not user_theme:
+                # Create a default theme for the user
+                user_theme = UserTheme(
+                    telegram_id=telegram_id,
+                    theme_name="default"
+                )
+                db.session.add(user_theme)
+                db.session.commit()
+                logger.info(f"Created default theme for user {telegram_id}")
+            
+            # Build theme dictionary
+            theme = {
+                "id": user_theme.id,
+                "theme_name": user_theme.theme_name,
+                "primary_color": user_theme.primary_color,
+                "secondary_color": user_theme.secondary_color,
+                "accent_color": user_theme.accent_color,
+                "font_style": user_theme.font_style,
+                "emoji_set": user_theme.emoji_set
+            }
+            
+            return theme
     
-    except SQLAlchemyError as e:
-        logger.error(f"Database error when getting user theme: {e}")
+    except Exception as e:
+        logger.error(f"Error when getting user theme: {e}")
         # Return default theme if there's an error
-        return PRESET_THEMES["default"]
+        default_theme = PRESET_THEMES["default"]
+        # Convert preset theme to user theme format
+        return {
+            "id": 0,
+            "theme_name": "default",
+            "primary_color": default_theme["primary_color"],
+            "secondary_color": default_theme["secondary_color"],
+            "accent_color": default_theme["accent_color"],
+            "font_style": default_theme["font_style"],
+            "emoji_set": default_theme["emoji_set"]
+        }
 
 def set_user_theme(telegram_id, theme_name):
     """
@@ -190,34 +205,45 @@ def set_user_theme(telegram_id, theme_name):
         bool: True if successful, False otherwise.
     """
     try:
-        if theme_name not in PRESET_THEMES:
+        # Importing here to avoid circular imports
+        from database import app
+        
+        if theme_name not in PRESET_THEMES and theme_name != "back":
             logger.error(f"Theme {theme_name} not found")
             return False
-        
+            
+        # Special case for the "back" action
+        if theme_name == "back":
+            return True
+            
         preset = PRESET_THEMES[theme_name]
         
-        # Get or create user theme
-        user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
-        
-        if not user_theme:
-            user_theme = UserTheme(telegram_id=telegram_id)
-            db.session.add(user_theme)
-        
-        # Update with preset values
-        user_theme.theme_name = theme_name
-        user_theme.primary_color = preset["primary_color"]
-        user_theme.secondary_color = preset["secondary_color"]
-        user_theme.accent_color = preset["accent_color"]
-        user_theme.font_style = preset["font_style"]
-        user_theme.emoji_set = preset["emoji_set"]
-        
-        db.session.commit()
-        logger.info(f"Set theme {theme_name} for user {telegram_id}")
-        return True
+        # Use Flask app context when querying the database
+        with app.app_context():
+            # Get or create user theme
+            user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
+            
+            if not user_theme:
+                user_theme = UserTheme(telegram_id=telegram_id)
+                db.session.add(user_theme)
+            
+            # Update with preset values
+            user_theme.theme_name = theme_name
+            user_theme.primary_color = preset["primary_color"]
+            user_theme.secondary_color = preset["secondary_color"]
+            user_theme.accent_color = preset["accent_color"]
+            user_theme.font_style = preset["font_style"]
+            user_theme.emoji_set = preset["emoji_set"]
+            
+            db.session.commit()
+            logger.info(f"Set theme {theme_name} for user {telegram_id}")
+            return True
     
-    except SQLAlchemyError as e:
-        logger.error(f"Database error when setting user theme: {e}")
-        db.session.rollback()
+    except Exception as e:
+        logger.error(f"Error when setting user theme: {e}")
+        if 'app' in locals() and 'db' in globals():
+            with app.app_context():
+                db.session.rollback()
         return False
 
 def update_user_theme_settings(telegram_id, settings):
@@ -232,36 +258,43 @@ def update_user_theme_settings(telegram_id, settings):
         bool: True if successful, False otherwise.
     """
     try:
-        # Get or create user theme
-        user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
+        # Importing here to avoid circular imports
+        from database import app
         
-        if not user_theme:
-            user_theme = UserTheme(telegram_id=telegram_id)
-            db.session.add(user_theme)
-            user_theme.theme_name = "custom"
-        elif "theme_name" in settings:
-            # If changing specific settings, mark as custom theme
-            user_theme.theme_name = "custom"
-        
-        # Update settings
-        if "primary_color" in settings:
-            user_theme.primary_color = settings["primary_color"]
-        if "secondary_color" in settings:
-            user_theme.secondary_color = settings["secondary_color"]
-        if "accent_color" in settings:
-            user_theme.accent_color = settings["accent_color"]
-        if "font_style" in settings:
-            user_theme.font_style = settings["font_style"]
-        if "emoji_set" in settings:
-            user_theme.emoji_set = settings["emoji_set"]
-        
-        db.session.commit()
-        logger.info(f"Updated theme settings for user {telegram_id}")
-        return True
+        # Use Flask app context when querying the database
+        with app.app_context():
+            # Get or create user theme
+            user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
+            
+            if not user_theme:
+                user_theme = UserTheme(telegram_id=telegram_id)
+                db.session.add(user_theme)
+                user_theme.theme_name = "custom"
+            elif "theme_name" in settings:
+                # If changing specific settings, mark as custom theme
+                user_theme.theme_name = "custom"
+            
+            # Update settings
+            if "primary_color" in settings:
+                user_theme.primary_color = settings["primary_color"]
+            if "secondary_color" in settings:
+                user_theme.secondary_color = settings["secondary_color"]
+            if "accent_color" in settings:
+                user_theme.accent_color = settings["accent_color"]
+            if "font_style" in settings:
+                user_theme.font_style = settings["font_style"]
+            if "emoji_set" in settings:
+                user_theme.emoji_set = settings["emoji_set"]
+            
+            db.session.commit()
+            logger.info(f"Updated theme settings for user {telegram_id}")
+            return True
     
-    except SQLAlchemyError as e:
-        logger.error(f"Database error when updating user theme: {e}")
-        db.session.rollback()
+    except Exception as e:
+        logger.error(f"Error when updating user theme: {e}")
+        if 'app' in locals() and 'db' in globals():
+            with app.app_context():
+                db.session.rollback()
         return False
 
 def get_preset_themes():
@@ -288,9 +321,14 @@ def get_emoji(emoji_name, telegram_id=None):
         emoji_set = "default"
         
         if telegram_id:
-            user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
-            if user_theme:
-                emoji_set = user_theme.emoji_set
+            # Import app for context
+            from database import app
+            
+            # Use Flask app context when querying the database
+            with app.app_context():
+                user_theme = UserTheme.query.filter_by(telegram_id=telegram_id).first()
+                if user_theme:
+                    emoji_set = user_theme.emoji_set
         
         if emoji_set in EMOJI_SETS and emoji_name in EMOJI_SETS[emoji_set]:
             return EMOJI_SETS[emoji_set][emoji_name]
