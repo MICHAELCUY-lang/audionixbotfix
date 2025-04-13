@@ -3,7 +3,7 @@ import logging
 import tempfile
 from googleapiclient.discovery import build
 import yt_dlp
-from utils.downloader import clean_filename
+from utils.downloader import clean_filename, DownloadProgressHook
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -64,12 +64,17 @@ def search_youtube(query, max_results=5):
         logger.error(f"Error searching YouTube: {e}")
         return []
 
-def download_from_youtube(video_id):
+def download_from_youtube(video_id, bot=None, chat_id=None, status_message=None, progress_callback=None):
     """
     Download a video from YouTube as MP3.
     
     Args:
         video_id (str): The YouTube video ID.
+        bot: The Telegram bot instance, optional for progress updates
+        chat_id: The chat ID to send progress updates to, optional
+        status_message: Optional message object to edit for progress updates
+        progress_callback (callable, optional): A callback function to report progress.
+            It will be called with the current progress percentage.
     
     Returns:
         str: Path to the downloaded file, or None if download failed.
@@ -85,6 +90,31 @@ def download_from_youtube(video_id):
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
             output_path = temp_file.name
         
+        # Set up progress hooks
+        progress_hooks = []
+        
+        # Use DownloadProgressHook if bot and chat_id are provided
+        if bot and chat_id:
+            progress_hooks.append(DownloadProgressHook(bot, chat_id, status_message))
+        # Otherwise, use the simple progress callback if provided
+        elif progress_callback:
+            def simple_progress_hook(d):
+                if d['status'] == 'downloading':
+                    if 'total_bytes' in d and d['total_bytes'] > 0:
+                        percent = d['downloaded_bytes'] / d['total_bytes'] * 100
+                    elif 'total_bytes_estimate' in d and d['total_bytes_estimate'] > 0:
+                        percent = d['downloaded_bytes'] / d['total_bytes_estimate'] * 100
+                    else:
+                        percent = 0
+                    
+                    # Report progress
+                    progress_callback(round(percent))
+                
+                elif d['status'] == 'finished':
+                    progress_callback(100)
+            
+            progress_hooks.append(simple_progress_hook)
+        
         # Set up yt-dlp options
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -94,9 +124,13 @@ def download_from_youtube(video_id):
                 'preferredquality': '192',
             }],
             'outtmpl': output_path[:-4],  # Remove the .mp3 extension as yt-dlp adds it
-            'quiet': True,
+            'quiet': not progress_hooks,  # Only be quiet if no progress hooks
             'no_warnings': True,
         }
+        
+        # Add progress hooks if available
+        if progress_hooks:
+            ydl_opts['progress_hooks'] = progress_hooks
         
         # Download the audio
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
