@@ -8,12 +8,18 @@ from telegram.ext import (
 )
 from services.youtube_service import search_youtube, download_from_youtube
 from services.spotify_service import search_spotify, download_from_spotify
+from services.lyrics_service import search_lyrics, get_lyrics_as_text, get_lyrics_as_file
+from services.trending_service import get_trending_formatted
+from services.notification_service import (
+    subscribe_to_artist, unsubscribe_from_artist, 
+    get_user_subscriptions, toggle_notifications
+)
 from utils.converter import convert_mp3_to_mp4, convert_mp4_to_mp3
 from utils.downloader import clean_filename
 from utils.waveform import generate_preview_bundle
 
 # States for conversation
-SEARCHING, DOWNLOADING, CONVERTING, FORMAT_SELECTION = range(4)
+SEARCHING, DOWNLOADING, CONVERTING, FORMAT_SELECTION, SUBSCRIBING = range(5)
 
 # Callback data
 YOUTUBE = 'youtube'
@@ -44,10 +50,16 @@ def start(update: Update, context: CallbackContext) -> None:
         "Here's what I can do for you:\n"
         "- Search and download music from YouTube and Spotify\n"
         "- Preview songs with visual waveform display\n"
+        "- Show song lyrics\n"
+        "- Display trending songs\n"
+        "- Notify about new releases from your favorite artists\n"
         "- Share songs via social media with one click\n"
         "- Convert MP3 to MP4 and vice versa\n\n"
         "Commands:\n"
         "/search - Search for music\n"
+        "/lyrics - Find lyrics for a song\n"
+        "/trending - Show trending songs\n"
+        "/subscribe - Get notified of new releases\n"
         "/convert - Convert between MP3 and MP4\n"
         "/help - Get help\n"
     )
@@ -59,6 +71,9 @@ def help_command(update: Update, context: CallbackContext) -> None:
         "*Commands:*\n"
         "/start - Start the bot\n"
         "/search - Search for music on YouTube or Spotify\n"
+        "/lyrics - Find lyrics for a song\n"
+        "/trending - Show trending songs\n"
+        "/subscribe - Get notified of new releases\n"
         "/convert - Convert between MP3 and MP4\n"
         "/help - Show this help message\n\n"
         "*How to use:*\n"
@@ -72,6 +87,15 @@ def help_command(update: Update, context: CallbackContext) -> None:
         "- Get a 30-second audio preview of the song\n"
         "- View the audio waveform visualization\n"
         "- Perfect for deciding if you want the full song\n\n"
+        "*Lyrics Feature:*\n"
+        "- Get lyrics for your favorite songs\n"
+        "- Simply use /lyrics and follow the instructions\n\n"
+        "*Trending Feature:*\n"
+        "- See what songs are trending on YouTube and Spotify\n"
+        "- Simply use /trending to get the latest charts\n\n"
+        "*Artist Notifications:*\n"
+        "- Get notified when your favorite artists release new music\n"
+        "- Use /subscribe to manage your artist subscriptions\n\n"
         "*Sharing:*\n"
         "After downloading a song, you'll see sharing buttons for:\n"
         "- Twitter\n"
