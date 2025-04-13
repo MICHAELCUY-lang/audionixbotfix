@@ -47,6 +47,11 @@ def main():
     # Run the bot until you press Ctrl-C
     logger.info("Bot is up and running! Use your Telegram client to interact with it.")
     logger.info("Press Ctrl+C to stop the bot.")
+    logger.info("\nIMPORTANT:")
+    logger.info("1. Make sure bot's privacy mode is DISABLED via BotFather")
+    logger.info("2. Add the bot as an ADMIN in large groups")
+    logger.info("3. Use /status command to check bot's status in groups")
+    logger.info("4. Commands in groups must start with / (slash)")
     updater.idle()
 
 # Initialize database tables within the app context

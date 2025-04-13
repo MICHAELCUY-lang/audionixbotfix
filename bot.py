@@ -51,10 +51,22 @@ def handle_group_command(update, context, command_function):
     """
     if is_group_message(update):
         # Log that we received a command in a group
-        logger.info(f"Received command in group: {update.effective_chat.title}")
+        chat_title = update.effective_chat.title or "Unknown Group"
+        chat_id = update.effective_chat.id
+        user_id = update.effective_user.id
+        username = update.effective_user.username or "Unknown"
         
-        # Process all commands in groups (more permissive approach)
-        return command_function(update, context)
+        logger.info(f"Received command in group: {chat_title} (ID: {chat_id}) from user: {username} (ID: {user_id})")
+        
+        # Always process commands that begin with slash in groups
+        if update.message and update.message.text and update.message.text.startswith('/'):
+            # Extra log for debugging large groups
+            logger.info(f"Processing command: {update.message.text} in group {chat_title}")
+            return command_function(update, context)
+        else:
+            # For other messages, don't process in groups to avoid spam
+            logger.info(f"Ignoring non-command message in group {chat_title}")
+            return None
     else:
         # Process normally in private chats
         return command_function(update, context)
@@ -749,6 +761,19 @@ def setup_bot(dispatcher):
     # Basic command handlers
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
+    
+    # Add debug command handler for large groups
+    dispatcher.add_handler(CommandHandler("status", lambda update, context: 
+        update.message.reply_text(
+            f"Bot is active!\nChat ID: {update.effective_chat.id}\n"
+            f"Chat Type: {update.effective_chat.type}\n"
+            f"Chat Title: {update.effective_chat.title or 'N/A'}\n"
+            f"User: {update.effective_user.username or update.effective_user.first_name}\n"
+            f"User ID: {update.effective_user.id}\n"
+            f"Bot Username: {context.bot.username}\n"
+            f"Is Bot Admin: {'Unknown - Check in chat settings'}"
+        )
+    ))
     
     # Search conversation handler
     search_conv_handler = ConversationHandler(
