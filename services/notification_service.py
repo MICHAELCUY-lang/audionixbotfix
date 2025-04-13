@@ -1,6 +1,7 @@
 import os
 import logging
 from datetime import datetime, timedelta
+import pytz
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from googleapiclient.discovery import build
@@ -52,7 +53,7 @@ def initialize_notification_service(bot, app_context):
     
     # Initialize scheduler
     scheduler = BackgroundScheduler()
-    scheduler.add_job(check_for_new_releases, 'interval', hours=12)
+    scheduler.add_job(check_for_new_releases, 'interval', hours=12, timezone=pytz.UTC)
     scheduler.start()
     
     logger.info("Notification service initialized.")

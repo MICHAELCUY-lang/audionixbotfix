@@ -720,6 +720,13 @@ def cancel(update: Update, context: CallbackContext) -> int:
 
 def setup_bot(dispatcher):
     """Setup bot handlers."""
+    # Import command handlers from bot_commands.py
+    from bot_commands import (
+        lyrics_command, lyrics_search, trending_command, 
+        subscribe_command, subscribe_menu_callback, 
+        handle_artist_subscribe, handle_platform_selection, handle_unsubscribe
+    )
+    
     # Basic command handlers
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
@@ -755,6 +762,34 @@ def setup_bot(dispatcher):
     )
     dispatcher.add_handler(convert_conv_handler)
     
+    # Subscription conversation handler
+    subscribe_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("subscribe", subscribe_command)],
+        states={
+            SUBSCRIBING: [
+                CallbackQueryHandler(subscribe_menu_callback, pattern="^subscribe_artist$|^manage_subscriptions$|^toggle_notifications$"),
+                CallbackQueryHandler(handle_platform_selection, pattern="^sub_platform_"),
+                CallbackQueryHandler(handle_unsubscribe, pattern="^unsub_"),
+                CallbackQueryHandler(lambda u, c: ConversationHandler.END, pattern="^sub_done$"),
+                MessageHandler(Filters.text & ~Filters.command, handle_artist_subscribe),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    dispatcher.add_handler(subscribe_conv_handler)
+    
+    # Add trending handler
+    dispatcher.add_handler(CommandHandler("trending", trending_command))
+    
+    # Add lyrics handlers
+    dispatcher.add_handler(CommandHandler("lyrics", lyrics_command))
+    dispatcher.add_handler(MessageHandler(
+        Filters.regex(r'^.+( - ).+$') & 
+        Filters.update.message & 
+        ~Filters.command, 
+        lyrics_search
+    ))
+    
     # Add social media sharing handlers
     dispatcher.add_handler(
         CallbackQueryHandler(
@@ -763,7 +798,7 @@ def setup_bot(dispatcher):
         )
     )
     
-    # Add fallback message handler
+    # Add fallback message handler - MUST BE LAST
     dispatcher.add_handler(
         MessageHandler(
             Filters.text & ~Filters.command,

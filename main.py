@@ -3,6 +3,9 @@ import logging
 from telegram.ext import Updater
 import bot
 from database import app, db
+from services.notification_service import initialize_notification_service
+from services.lyrics_service import initialize_genius
+from services.trending_service import initialize_api_clients
 
 # Setup logging
 logging.basicConfig(
@@ -24,6 +27,11 @@ def main():
     
     # Setup bot handlers
     bot.setup_bot(dispatcher)
+    
+    # Initialize services
+    initialize_genius()
+    initialize_api_clients()
+    initialize_notification_service(updater.bot, app.app_context)
     
     # Log that the bot is starting
     logger.info("Starting bot with token %s...", token[:8] + "..." + token[-5:])
