@@ -75,3 +75,22 @@ class TrendingSong(db.Model):
     
     def __repr__(self):
         return f"<TrendingSong {self.title} by {self.artist}>"
+
+
+class UserTheme(db.Model):
+    """Model for storing user theme preferences."""
+    __tablename__ = "user_themes"
+
+    id = Column(Integer, primary_key=True)
+    telegram_id = Column(String(20), unique=True, nullable=False)
+    theme_name = Column(String(50), nullable=False, default="default")
+    primary_color = Column(String(7), nullable=False, default="#0088CC")  # Telegram default blue
+    secondary_color = Column(String(7), nullable=False, default="#FFFFFF")
+    accent_color = Column(String(7), nullable=False, default="#27AE60")
+    font_style = Column(String(50), nullable=False, default="default")
+    emoji_set = Column(String(20), nullable=False, default="default")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<UserTheme(telegram_id='{self.telegram_id}', theme_name='{self.theme_name}')>"

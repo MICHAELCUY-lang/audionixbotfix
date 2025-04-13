@@ -57,7 +57,7 @@ def main():
 # Initialize database tables within the app context
 with app.app_context():
     # Import models here to avoid circular imports
-    from models import User, ArtistSubscription, SearchHistory, TrendingSong  # noqa: F401
+    from models import User, ArtistSubscription, SearchHistory, TrendingSong, UserTheme  # noqa: F401
     
     # Create tables if they don't exist
     db.create_all()

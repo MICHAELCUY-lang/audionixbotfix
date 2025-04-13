@@ -21,13 +21,30 @@ def convert_mp3_to_mp4(mp3_path):
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
             output_path = temp_file.name
         
+        # Get audio duration using ffprobe
+        duration_cmd = [
+            'ffprobe', 
+            '-v', 'error', 
+            '-show_entries', 'format=duration', 
+            '-of', 'default=noprint_wrappers=1:nokey=1', 
+            mp3_path
+        ]
+        
+        try:
+            # Get the duration of the audio file
+            audio_duration = float(subprocess.check_output(duration_cmd).decode('utf-8').strip())
+            logger.info(f"Detected audio duration: {audio_duration} seconds")
+        except Exception as e:
+            logger.warning(f"Could not determine audio duration: {e}, using default color source")
+            audio_duration = 36000  # Use a very large default (10 hours)
+        
         # Create a command to use ffmpeg for conversion
-        # Generate a solid color video with the audio
+        # Generate a solid color video with the audio for the full duration
         command = [
             'ffmpeg',
             '-y',  # Overwrite output file if it exists
             '-f', 'lavfi',  # Use lavfi input format
-            '-i', 'color=c=blue:s=1280x720:d=60',  # Create a blue background
+            '-i', f'color=c=blue:s=1280x720:d={audio_duration}',  # Create blue background for full duration
             '-i', mp3_path,  # Input audio file
             '-shortest',  # End when the shortest input stream ends
             '-c:v', 'libx264',  # Video codec

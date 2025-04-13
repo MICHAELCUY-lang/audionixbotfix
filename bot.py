@@ -77,66 +77,170 @@ logger = logging.getLogger(__name__)
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
-    update.message.reply_html(
-        f"Hi <a href='tg://user?id={user.id}'>{user.first_name}</a>! I'm your Music Bot.\n\n"
-        "Here's what I can do for you:\n"
-        "- Search and download music from YouTube and Spotify\n"
-        "- Preview songs with visual waveform display\n"
-        "- Show song lyrics\n"
-        "- Display trending songs\n"
-        "- Notify about new releases from your favorite artists\n"
-        "- Share songs via social media with one click\n"
-        "- Convert MP3 to MP4 and vice versa\n\n"
-        "Commands:\n"
-        "/search - Search for music\n"
-        "/lyrics - Find lyrics for a song\n"
-        "/trending - Show trending songs\n"
-        "/subscribe - Get notified of new releases\n"
-        "/convert - Convert between MP3 and MP4\n"
-        "/help - Get help\n"
-    )
+    
+    # Get user's theme if available
+    from services.theme_service import format_message_with_theme, get_user_theme
+    telegram_id = str(user.id)
+    
+    try:
+        # Try to use themed formatting if available
+        theme = get_user_theme(telegram_id)
+        
+        message = format_message_with_theme(
+            f"Hi <a href='tg://user?id={user.id}'>{user.first_name}</a>! I'm your Music Bot.\n\n"
+            "{emoji:music} Here's what I can do for you:\n"
+            "- Search and download music from YouTube and Spotify\n"
+            "- Preview songs with visual waveform display\n"
+            "- Show song lyrics\n"
+            "- Display trending songs\n"
+            "- Recommend music based on your preferences\n"
+            "- Share songs via social media with one click\n"
+            "- Convert MP3 to MP4 and vice versa\n"
+            "- Customize the bot interface with themes\n\n"
+            "{emoji:info} Commands:\n"
+            "/search - Search for music\n"
+            "/lyrics - Find lyrics for a song\n"
+            "/trending - Show trending songs\n"
+            "/recommend - Get music recommendations\n"
+            "/convert - Convert between MP3 and MP4\n"
+            "/theme - Customize the bot interface\n"
+            "/help - Get help\n",
+            telegram_id
+        )
+        
+        update.message.reply_html(message)
+    
+    except Exception as e:
+        # Fallback to standard formatting if there's an error
+        update.message.reply_html(
+            f"Hi <a href='tg://user?id={user.id}'>{user.first_name}</a>! I'm your Music Bot.\n\n"
+            "Here's what I can do for you:\n"
+            "- Search and download music from YouTube and Spotify\n"
+            "- Preview songs with visual waveform display\n"
+            "- Show song lyrics\n"
+            "- Display trending songs\n"
+            "- Recommend music based on your preferences\n"
+            "- Share songs via social media with one click\n"
+            "- Convert MP3 to MP4 and vice versa\n"
+            "- Customize the bot interface with themes\n\n"
+            "Commands:\n"
+            "/search - Search for music\n"
+            "/lyrics - Find lyrics for a song\n"
+            "/trending - Show trending songs\n"
+            "/recommend - Get music recommendations\n"
+            "/convert - Convert between MP3 and MP4\n"
+            "/theme - Customize the bot interface\n"
+            "/help - Get help\n"
+        )
 
 def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
-    update.message.reply_text(
-        "🎵 *Music Bot Help* 🎵\n\n"
-        "*Commands:*\n"
-        "/start - Start the bot\n"
-        "/search - Search for music on YouTube or Spotify\n"
-        "/lyrics - Find lyrics for a song\n"
-        "/trending - Show trending songs\n"
-        "/subscribe - Get notified of new releases\n"
-        "/convert - Convert between MP3 and MP4\n"
-        "/help - Show this help message\n\n"
-        "*How to use:*\n"
-        "1. Use /search to find music\n"
-        "2. Select the platform (YouTube/Spotify)\n"
-        "3. Enter your search query\n"
-        "4. Select a song from the results\n"
-        "5. Choose to preview the song or download it\n"
-        "6. After download, you can share the song to social media\n\n"
-        "*Preview Feature:*\n"
-        "- Get a 30-second audio preview of the song\n"
-        "- View the audio waveform visualization\n"
-        "- Perfect for deciding if you want the full song\n\n"
-        "*Lyrics Feature:*\n"
-        "- Get lyrics for your favorite songs\n"
-        "- Simply use /lyrics and follow the instructions\n\n"
-        "*Trending Feature:*\n"
-        "- See what songs are trending on YouTube and Spotify\n"
-        "- Simply use /trending to get the latest charts\n\n"
-        "*Artist Notifications:*\n"
-        "- Get notified when your favorite artists release new music\n"
-        "- Use /subscribe to manage your artist subscriptions\n\n"
-        "*Sharing:*\n"
-        "After downloading a song, you'll see sharing buttons for:\n"
-        "- Twitter\n"
-        "- Facebook\n"
-        "- WhatsApp\n"
-        "- Telegram\n\n"
-        "For conversion, use /convert and follow the instructions.",
-        parse_mode='Markdown'
-    )
+    user = update.effective_user
+    telegram_id = str(user.id)
+    
+    # Get user's theme if available
+    from services.theme_service import format_message_with_theme, get_user_theme
+    
+    try:
+        # Try to use themed formatting if available
+        theme = get_user_theme(telegram_id)
+        
+        message = format_message_with_theme(
+            "{emoji:music} *Music Bot Help* {emoji:music}\n\n"
+            "*Commands:*\n"
+            "/start - Start the bot\n"
+            "/search - Search for music on YouTube or Spotify\n"
+            "/lyrics - Find lyrics for a song\n"
+            "/trending - Show trending songs\n"
+            "/recommend - Get music recommendations\n"
+            "/convert - Convert between MP3 and MP4\n"
+            "/theme - Customize the bot interface\n"
+            "/help - Show this help message\n\n"
+            "*How to use:*\n"
+            "1. Use /search to find music\n"
+            "2. Select the platform (YouTube/Spotify)\n"
+            "3. Enter your search query\n"
+            "4. Select a song from the results\n"
+            "5. Choose to preview the song or download it\n"
+            "6. After download, you can share the song to social media\n\n"
+            "*Preview Feature:*\n"
+            "- Get a 30-second audio preview of the song\n"
+            "- View the audio waveform visualization\n"
+            "- Perfect for deciding if you want the full song\n\n"
+            "*Lyrics Feature:*\n"
+            "- Get lyrics for your favorite songs\n"
+            "- Simply use /lyrics and follow the instructions\n\n"
+            "*Trending Feature:*\n"
+            "- See what songs are trending on YouTube and Spotify\n"
+            "- Simply use /trending to get the latest charts\n\n"
+            "*Recommendation Feature:*\n"
+            "- Get personalized music recommendations\n"
+            "- Use /recommend to discover new music based on your preferences\n\n"
+            "*Theme Customization:*\n"
+            "- Personalize your bot interface with different themes\n"
+            "- Change colors, emoji sets, and font styles\n"
+            "- Use /theme to access customization options\n\n"
+            "*Sharing:*\n"
+            "After downloading a song, you'll see sharing buttons for:\n"
+            "- Twitter\n"
+            "- Facebook\n"
+            "- WhatsApp\n"
+            "- Telegram\n\n"
+            "For conversion, use /convert and follow the instructions.",
+            telegram_id
+        )
+        
+        update.message.reply_text(
+            message,
+            parse_mode='Markdown'
+        )
+    
+    except Exception as e:
+        # Fallback to standard formatting if there's an error
+        update.message.reply_text(
+            "🎵 *Music Bot Help* 🎵\n\n"
+            "*Commands:*\n"
+            "/start - Start the bot\n"
+            "/search - Search for music on YouTube or Spotify\n"
+            "/lyrics - Find lyrics for a song\n"
+            "/trending - Show trending songs\n"
+            "/recommend - Get music recommendations\n"
+            "/convert - Convert between MP3 and MP4\n"
+            "/theme - Customize the bot interface\n"
+            "/help - Show this help message\n\n"
+            "*How to use:*\n"
+            "1. Use /search to find music\n"
+            "2. Select the platform (YouTube/Spotify)\n"
+            "3. Enter your search query\n"
+            "4. Select a song from the results\n"
+            "5. Choose to preview the song or download it\n"
+            "6. After download, you can share the song to social media\n\n"
+            "*Preview Feature:*\n"
+            "- Get a 30-second audio preview of the song\n"
+            "- View the audio waveform visualization\n"
+            "- Perfect for deciding if you want the full song\n\n"
+            "*Lyrics Feature:*\n"
+            "- Get lyrics for your favorite songs\n"
+            "- Simply use /lyrics and follow the instructions\n\n"
+            "*Trending Feature:*\n"
+            "- See what songs are trending on YouTube and Spotify\n"
+            "- Simply use /trending to get the latest charts\n\n"
+            "*Recommendation Feature:*\n"
+            "- Get personalized music recommendations\n"
+            "- Use /recommend to discover new music based on your preferences\n\n"
+            "*Theme Customization:*\n"
+            "- Personalize your bot interface with different themes\n"
+            "- Change colors, emoji sets, and font styles\n"
+            "- Use /theme to access customization options\n\n"
+            "*Sharing:*\n"
+            "After downloading a song, you'll see sharing buttons for:\n"
+            "- Twitter\n"
+            "- Facebook\n"
+            "- WhatsApp\n"
+            "- Telegram\n\n"
+            "For conversion, use /convert and follow the instructions.",
+            parse_mode='Markdown'
+        )
 
 def search_command(update: Update, context: CallbackContext) -> int:
     """Handle the /search command."""
@@ -694,9 +798,13 @@ def handle_file_for_conversion(update: Update, context: CallbackContext) -> int:
     file_info.download(input_file)
     
     # Convert the file
-    update.message.reply_text("Converting your file...")
+    status_message = update.message.reply_text("Converting your file...")
     
     try:
+        # Log file information
+        file_size = os.path.getsize(input_file) / (1024 * 1024)  # Convert to MB
+        logger.info(f"Converting file. Type: {conversion_type}, Size: {file_size:.2f} MB")
+        
         output_file = None
         if conversion_type == MP3_TO_MP4:
             output_file = context.dispatcher.run_async(
@@ -756,6 +864,11 @@ def setup_bot(dispatcher):
     from bot_commands import (
         lyrics_command, lyrics_search, trending_command, 
         recommend_command, recommend_callback
+    )
+    
+    # Import theme command handlers
+    from bot_theme_commands import (
+        theme_command, theme_callback, theme_set_callback
     )
     
     # Basic command handlers
@@ -834,6 +947,25 @@ def setup_bot(dispatcher):
         CallbackQueryHandler(
             share_callback,
             pattern=f'^({SHARE_TWITTER}|{SHARE_FACEBOOK}|{SHARE_WHATSAPP}|{SHARE_TELEGRAM}|{SHARE_MORE}):'
+        )
+    )
+    
+    # Add theme command handler
+    dispatcher.add_handler(CommandHandler("theme", theme_command))
+    
+    # Add theme callbacks
+    dispatcher.add_handler(
+        CallbackQueryHandler(
+            theme_callback,
+            pattern=f'^(theme_select|theme_custom|theme_color|theme_emoji|theme_font):'
+        )
+    )
+    
+    # Add theme setting callback
+    dispatcher.add_handler(
+        CallbackQueryHandler(
+            theme_set_callback,
+            pattern='^theme_set:'
         )
     )
     
