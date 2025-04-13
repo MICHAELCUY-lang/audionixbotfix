@@ -1,0 +1,55 @@
+{
+  "name": "MusicBot24-7",
+  "description": "A Telegram bot for music discovery and downloading with 24/7 uptime",
+  "keywords": [
+    "python",
+    "telegram-bot",
+    "music-bot",
+    "24-7"
+  ],
+  "repository": "https://github.com/yourusername/musicbot",
+  "env": {
+    "TELEGRAM_TOKEN": {
+      "description": "Your Telegram Bot Token obtained from BotFather",
+      "value": ""
+    },
+    "ADMIN_TELEGRAM_ID": {
+      "description": "Telegram user ID of the admin (for error notifications)",
+      "value": "",
+      "required": false
+    },
+    "REPLIT_URL": {
+      "description": "URL of your Replit app (used for keep-alive pings)",
+      "value": "",
+      "required": false
+    },
+    "YOUTUBE_API_KEY": {
+      "description": "YouTube Data API key",
+      "value": "",
+      "required": false
+    },
+    "SPOTIFY_CLIENT_ID": {
+      "description": "Spotify API client ID",
+      "value": "",
+      "required": false
+    },
+    "SPOTIFY_CLIENT_SECRET": {
+      "description": "Spotify API client secret",
+      "value": "",
+      "required": false
+    },
+    "GENIUS_ACCESS_TOKEN": {
+      "description": "Genius API access token",
+      "value": "",
+      "required": false
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    },
+    {
+      "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git"
+    }
+  ]
+}
